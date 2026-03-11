@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Asistencia - JIPEM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            color: #222;
+            background: #fff;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #1a3a5c;
+            padding-bottom: 18px;
+            margin-bottom: 24px;
+        }
+        .header .university {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a3a5c;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .header .system-name {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 22px;
+            color: #1a3a5c;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px 30px;
+            background: #f4f7fb;
+            border: 1px solid #d0dbe8;
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin-bottom: 22px;
+        }
+        .meta-item {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+        }
+        .meta-label {
+            font-weight: 700;
+            color: #1a3a5c;
+            min-width: 80px;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        .meta-value {
+            color: #333;
+            font-size: 13px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 22px;
+            font-size: 13px;
+        }
+        thead tr {
+            background: #1a3a5c;
+            color: #fff;
+        }
+        thead th {
+            padding: 11px 14px;
+            text-align: left;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        tbody tr:nth-child(even) {
+            background: #f0f4fa;
+        }
+        tbody tr:hover {
+            background: #dce8f5;
+        }
+        tbody td {
+            padding: 9px 14px;
+            border-bottom: 1px solid #e0e7ef;
+            vertical-align: middle;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+        .badge-present {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .badge-absent {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .summary-box {
+            background: #eaf3ff;
+            border: 1px solid #b3d1f0;
+            border-left: 5px solid #1a3a5c;
+            border-radius: 6px;
+            padding: 14px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 40px;
+            align-items: center;
+        }
+        .summary-item {
+            text-align: center;
+        }
+        .summary-number {
+            font-size: 28px;
+            font-weight: 800;
+            color: #1a3a5c;
+            line-height: 1;
+        }
+        .summary-label {
+            font-size: 11px;
+            color: #555;
+            text-transform: uppercase;
+            margin-top: 3px;
+        }
+        .summary-number.present {
+            color: #155724;
+        }
+        .summary-number.absent {
+            color: #721c24;
+        }
+        .print-btn {
+            display: inline-block;
+            background: #1a3a5c;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 5px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 20px;
+            text-decoration: none;
+        }
+        .print-btn:hover {
+            background: #14304d;
+        }
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid #e0e7ef;
+            padding-top: 12px;
+            margin-top: 10px;
+        }
+        @media print {
+            .print-btn { display: none !important; }
+            body { padding: 10px; }
+            .header { margin-bottom: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">Imprimir Reporte</button>
+
+<div class="header">
+    <div class="university">Universidad Tecnologica Emiliano Zapata del Estado de Morelos</div>
+    <div class="system-name">Sistema JIPEM &mdash; Gestion de Asistencia y Fatiga</div>
+    <h1>Reporte de Asistencia</h1>
+</div>
+
+<div class="meta-grid">
+    <div class="meta-item">
+        <span class="meta-label">Grupo:</span>
+        <span class="meta-value">{{ session.classroom.name }}</span>
+    </div>
+    <div class="meta-item">
+        <span class="meta-label">Materia:</span>
+        <span class="meta-value">{{ session.classroom.subject }}</span>
+    </div>
+    <div class="meta-item">
+        <span class="meta-label">Fecha:</span>
+        <span class="meta-value">{{ session.date }}</span>
+    </div>
+    <div class="meta-item">
+        <span class="meta-label">Maestro:</span>
+        <span class="meta-value">{{ session.maestro.name|default:session.maestro.username }}</span>
+    </div>
+    <div class="meta-item">
+        <span class="meta-label">Estado:</span>
+        <span class="meta-value">{{ session.get_status_display }}</span>
+    </div>
+    <div class="meta-item">
+        <span class="meta-label">Generado:</span>
+        <span class="meta-value">{% now "d/m/Y H:i" %}</span>
+    </div>
+</div>
+
+<div class="summary-box">
+    <div class="summary-item">
+        <div class="summary-number">{{ total_count }}</div>
+        <div class="summary-label">Total Alumnos</div>
+    </div>
+    <div class="summary-item">
+        <div class="summary-number present">{{ present_count }}</div>
+        <div class="summary-label">Presentes</div>
+    </div>
+    <div class="summary-item">
+        <div class="summary-number absent">{{ total_count|add:"-"|add:present_count }}</div>
+        <div class="summary-label">Ausentes</div>
+    </div>
+    <div class="summary-item">
+        <div class="summary-number" style="color:#1a3a5c;">
+            {% if total_count %}
+                {% widthratio present_count total_count 100 %}%
+            {% else %}
+                0%
+            {% endif %}
+        </div>
+        <div class="summary-label">Asistencia</div>
+    </div>
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Alumno</th>
+            <th>Matricula</th>
+            <th>Minutos Presentes</th>
+            <th>Estado</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for record in records %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ record.student.name }}</td>
+            <td>{{ record.student.matricula }}</td>
+            <td>{{ record.minutes_present }} min</td>
+            <td>
+                {% if record.is_present %}
+                    <span class="badge badge-present">&#10003; Presente</span>
+                {% else %}
+                    <span class="badge badge-absent">&#10007; Ausente</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" style="text-align:center; color:#888; padding:20px;">
+                No hay registros de asistencia para esta sesion.
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="footer">
+    Sistema JIPEM &mdash; Universidad Tecnologica Emiliano Zapata del Estado de Morelos &mdash;
+    Reporte generado automaticamente
+</div>
+
+</body>
+</html>
