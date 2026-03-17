@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ChevronLeft, CheckCircle, XCircle, ClipboardList, ExternalLink } from 'lucide-react'
+import { ChevronLeft, CheckCircle, XCircle, ClipboardList, ExternalLink, RefreshCw } from 'lucide-react'
 import api from '../../api/axios'
 import PageHeader from '../../components/PageHeader'
 import StatusBadge from '../../components/StatusBadge'
@@ -11,6 +11,7 @@ export default function SessionDetail() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [toggling, setToggling] = useState(null) // record id being toggled
 
   useEffect(() => {
     fetchData()
@@ -27,6 +28,20 @@ export default function SessionDetail() {
       setError(err.response?.data?.detail || 'Error al cargar la sesión.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleToggle = async (record) => {
+    setToggling(record.id)
+    try {
+      const res = await api.patch(`/attendance/records/${record.id}/toggle/`)
+      setRecords(prev =>
+        prev.map(r => r.id === record.id ? { ...r, is_present: res.data.is_present } : r)
+      )
+    } catch {
+      // silently fail — UI stays unchanged
+    } finally {
+      setToggling(null)
     }
   }
 
@@ -56,6 +71,7 @@ export default function SessionDetail() {
   const presentCount = records.filter(r => r.is_present).length
   const totalCount = records.length
   const attendancePct = totalCount > 0 ? Math.round((presentCount / totalCount) * 100) : 0
+  const isCompleted = session?.status === 'completed'
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -77,7 +93,7 @@ export default function SessionDetail() {
         title={`Sesión del ${session?.date}`}
         subtitle={session?.classroom_name || `Grupo ${session?.classroom}`}
         action={
-          session?.status === 'completed' && (
+          isCompleted && (
             <a
               href={`http://localhost:8000/api/reports/attendance/?session_id=${id}`}
               target="_blank"
@@ -138,8 +154,11 @@ export default function SessionDetail() {
 
       {/* Records Table */}
       <div className="bg-white rounded-xl border overflow-hidden">
-        <div className="px-6 py-4 border-b">
+        <div className="px-6 py-4 border-b flex items-center justify-between">
           <h2 className="text-base font-semibold text-gray-900">Registro de Asistencia</h2>
+          {isCompleted && records.length > 0 && (
+            <p className="text-xs text-gray-400">Haz clic en el estado para corregir manualmente</p>
+          )}
         </div>
         {records.length === 0 ? (
           <div className="p-10 text-center">
@@ -161,7 +180,7 @@ export default function SessionDetail() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {records.map(record => (
-                  <tr key={record.id} className={`hover:bg-gray-50 ${!record.is_present ? 'opacity-60' : ''}`}>
+                  <tr key={record.id} className={`hover:bg-gray-50 transition-colors ${!record.is_present ? 'opacity-60' : ''}`}>
                     <td className="px-6 py-4 font-medium text-gray-900">
                       {record.student_name || record.student?.name || '—'}
                     </td>
@@ -169,14 +188,36 @@ export default function SessionDetail() {
                       {record.student_matricula || record.student?.matricula || '—'}
                     </td>
                     <td className="px-6 py-4">
-                      {record.is_present ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                          <CheckCircle size={12} /> Presente
-                        </span>
+                      {isCompleted ? (
+                        <button
+                          onClick={() => handleToggle(record)}
+                          disabled={toggling === record.id}
+                          title="Haz clic para cambiar manualmente"
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all hover:ring-2 hover:ring-offset-1 disabled:opacity-50 ${
+                            record.is_present
+                              ? 'bg-green-100 text-green-800 hover:ring-green-400'
+                              : 'bg-red-100 text-red-800 hover:ring-red-400'
+                          }`}
+                        >
+                          {toggling === record.id ? (
+                            <RefreshCw size={11} className="animate-spin" />
+                          ) : record.is_present ? (
+                            <CheckCircle size={11} />
+                          ) : (
+                            <XCircle size={11} />
+                          )}
+                          {record.is_present ? 'Presente' : 'Ausente'}
+                        </button>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                          <XCircle size={12} /> Ausente
-                        </span>
+                        record.is_present ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            <CheckCircle size={12} /> Presente
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                            <XCircle size={12} /> Ausente
+                          </span>
+                        )
                       )}
                     </td>
                   </tr>

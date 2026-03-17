@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de Fatiga — {{ student.name }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 13px;
+            color: #222;
+            background: #fff;
+            padding: 30px;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 3px solid #1a3a5c;
+            padding-bottom: 18px;
+            margin-bottom: 24px;
+        }
+        .header .university {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a3a5c;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+        .header .system-name {
+            font-size: 12px;
+            color: #555;
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 22px;
+            color: #1a3a5c;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        .info-card {
+            background: #f4f7fb;
+            border: 1px solid #d0dbe8;
+            border-left: 5px solid #1a3a5c;
+            border-radius: 6px;
+            padding: 16px 20px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 40px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .info-item .label {
+            font-size: 11px;
+            color: #777;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        .info-item .value {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a3a5c;
+        }
+        .result-section {
+            border: 1px solid #e0e7ef;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 24px;
+        }
+        .result-header {
+            background: #1a3a5c;
+            color: #fff;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .result-header h2 { font-size: 15px; }
+        .result-badge {
+            display: inline-block;
+            padding: 5px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-atento   { background: #d4edda; color: #155724; border: 1px solid #b8dacc; }
+        .badge-fatigado { background: #f8d7da; color: #721c24; border: 1px solid #f1b0b7; }
+        .badge-distraido{ background: #fff3cd; color: #856404; border: 1px solid #ffc107; }
+        .badge-nd       { background: #e9ecef; color: #555;    border: 1px solid #ccc; }
+        .result-body { padding: 20px; }
+        .scores-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .score-item label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: #555;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }
+        .score-value { font-size: 26px; font-weight: 800; margin-bottom: 6px; }
+        .score-value.attention { color: #1a7a3e; }
+        .score-value.fatigue   { color: #9b1c1c; }
+        .progress-bar-bg {
+            background: #e9ecef;
+            border-radius: 8px;
+            height: 14px;
+            overflow: hidden;
+        }
+        .progress-bar-fill { height: 100%; border-radius: 8px; }
+        .fill-attention { background: linear-gradient(to right, #28a745, #20c997); }
+        .fill-fatigue   { background: linear-gradient(to right, #dc3545, #e05260); }
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #eee;
+        }
+        .stat-item { text-align: center; }
+        .stat-number { font-size: 24px; font-weight: 800; color: #1a3a5c; }
+        .stat-label { font-size: 10px; color: #777; text-transform: uppercase; margin-top: 2px; }
+        .no-face {
+            text-align: center;
+            padding: 30px;
+            color: #999;
+            font-size: 14px;
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .print-btn {
+            display: inline-block;
+            background: #1a3a5c;
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 5px;
+            font-size: 13px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .print-btn:hover { background: #14304d; }
+        .footer {
+            text-align: center;
+            font-size: 11px;
+            color: #888;
+            border-top: 1px solid #e0e7ef;
+            padding-top: 12px;
+            margin-top: 24px;
+        }
+        @media print {
+            .print-btn { display: none !important; }
+            body { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">Imprimir Reporte</button>
+
+<div class="header">
+    <div class="university">Universidad Tecnologica Emiliano Zapata del Estado de Morelos</div>
+    <div class="system-name">Sistema Presentia &mdash; Gestion de Asistencia y Fatiga</div>
+    <h1>Reporte Individual de Fatiga y Atencion</h1>
+</div>
+
+<div class="info-card">
+    <div class="info-item">
+        <div class="label">Alumno</div>
+        <div class="value">{{ student.name }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Matricula</div>
+        <div class="value">{{ student.matricula }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Grupo</div>
+        <div class="value">{{ student.classroom.name }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Fecha del Analisis</div>
+        <div class="value">{{ analysis.date }}</div>
+    </div>
+    <div class="info-item">
+        <div class="label">Generado</div>
+        <div class="value" style="font-size:12px;">{% now "d/m/Y H:i" %}</div>
+    </div>
+</div>
+
+<div class="result-section">
+    <div class="result-header">
+        <h2>Resultado del Analisis</h2>
+        {% if analysis.result_label %}
+        <span class="result-badge badge-{{ analysis.result_label }}">
+            {{ analysis.get_result_label_display }}
+        </span>
+        {% else %}
+        <span class="result-badge badge-nd">Sin datos</span>
+        {% endif %}
+    </div>
+    <div class="result-body">
+        {% if analysis.result_label %}
+        <div class="scores-grid">
+            <div class="score-item">
+                <label>Puntuacion de Atencion</label>
+                <div class="score-value attention">{{ analysis.attention_score }}%</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill fill-attention"
+                         style="width: {{ analysis.attention_score }}%;"></div>
+                </div>
+            </div>
+            <div class="score-item">
+                <label>Puntuacion de Fatiga</label>
+                <div class="score-value fatigue">{{ analysis.fatigue_score }}%</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill fill-fatigue"
+                         style="width: {{ analysis.fatigue_score }}%;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="stats-row">
+            <div class="stat-item">
+                <div class="stat-number">{{ analysis.yawn_count }}</div>
+                <div class="stat-label">Bostezos detectados</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number">{{ analysis.eyes_closed_secs }}s</div>
+                <div class="stat-label">Ojos cerrados acumulados</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" style="
+                    {% if analysis.result_label == 'atento' %}color:#155724;
+                    {% elif analysis.result_label == 'fatigado' %}color:#721c24;
+                    {% else %}color:#856404;{% endif %}">
+                    {{ analysis.get_result_label_display }}
+                </div>
+                <div class="stat-label">Clasificacion final</div>
+            </div>
+        </div>
+        {% else %}
+        <div class="no-face">
+            El rostro del alumno no fue detectado con suficiente frecuencia en el video
+            para generar un reporte de fatiga. Verifique que el video sea correcto
+            y que el alumno tenga muestras faciales registradas.
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="footer">
+    Sistema Presentia &mdash; Universidad Tecnologica Emiliano Zapata del Estado de Morelos &mdash;
+    Reporte generado automaticamente
+</div>
+
+</body>
+</html>

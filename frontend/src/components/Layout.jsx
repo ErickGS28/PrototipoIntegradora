@@ -3,7 +3,6 @@ import {
   BookOpen,
   ClipboardList,
   BrainCircuit,
-  BarChart3,
   GraduationCap,
   LogOut,
   ScanFace,
@@ -14,7 +13,6 @@ const navLinks = [
   { to: '/classrooms', label: 'Grupos', Icon: BookOpen },
   { to: '/attendance', label: 'Asistencia', Icon: ClipboardList },
   { to: '/fatigue', label: 'Análisis de Fatiga', Icon: BrainCircuit },
-  { to: '/reports', label: 'Reportes', Icon: BarChart3 },
 ]
 
 export default function Layout() {

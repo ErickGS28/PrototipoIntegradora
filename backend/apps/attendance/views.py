@@ -130,3 +130,22 @@ class SessionStatusView(APIView):
             'status': session.status,
             'error_message': session.error_message,
         })
+
+
+class AttendanceRecordToggleView(APIView):
+    """Toggle is_present for a single attendance record (manual correction)."""
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, record_id):
+        qs = AttendanceRecord.objects.select_related('session__classroom')
+        if not request.user.is_admin:
+            qs = qs.filter(session__maestro=request.user)
+        record = get_object_or_404(qs, pk=record_id)
+
+        record.is_present = not record.is_present
+        record.save(update_fields=['is_present'])
+
+        return Response({
+            'id': record.id,
+            'is_present': record.is_present,
+        })

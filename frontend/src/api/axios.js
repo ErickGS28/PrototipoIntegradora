@@ -2,24 +2,28 @@ import axios from 'axios'
 
 const BASE_URL = 'http://localhost:8000/api'
 
-// In-memory token storage (NOT localStorage for security)
+// Access token stays in memory (XSS protection).
+// Refresh token goes to sessionStorage so page reloads don't kill the session.
 let accessToken = null
-let refreshToken = null
 let isRefreshing = false
 let failedQueue = []
 
 export function setTokens(access, refresh) {
   accessToken = access
-  refreshToken = refresh
+  if (refresh) sessionStorage.setItem('rt', refresh)
 }
 
 export function clearTokens() {
   accessToken = null
-  refreshToken = null
+  sessionStorage.removeItem('rt')
 }
 
 export function getAccessToken() {
   return accessToken
+}
+
+export function getStoredRefresh() {
+  return sessionStorage.getItem('rt')
 }
 
 const processQueue = (error, token = null) => {
@@ -35,7 +39,7 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
-// Request interceptor: attach token
+// Request interceptor: attach access token
 api.interceptors.request.use(
   (config) => {
     if (accessToken) {
@@ -51,9 +55,10 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const storedRefresh = getStoredRefresh()
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (!refreshToken) {
+      if (!storedRefresh) {
         clearTokens()
         window.location.href = '/login'
         return Promise.reject(error)
@@ -73,7 +78,7 @@ api.interceptors.response.use(
 
       try {
         const response = await axios.post(`${BASE_URL}/auth/refresh/`, {
-          refresh: refreshToken,
+          refresh: storedRefresh,
         })
         const newAccess = response.data.access
         accessToken = newAccess

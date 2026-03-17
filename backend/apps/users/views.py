@@ -41,6 +41,14 @@ class LoginView(TokenObtainPairView):
         return response
 
 
+class MeView(generics.RetrieveAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSerializer
+
+    def get_object(self):
+        return self.request.user
+
+
 class MaestroListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsAuthenticated, IsAdmin]
     serializer_class = AdminMaestroSerializer
