@@ -59,10 +59,18 @@ export default function SessionDetail() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-3">
-        <Link to="/attendance" className="text-sm text-gray-500 hover:text-blue-600 flex items-center gap-1 w-fit">
-          <ChevronLeft size={14} /> Sesiones
-        </Link>
+      <div className="mb-3 flex items-center gap-1 text-sm text-gray-400">
+        <Link to="/attendance" className="hover:text-blue-600 transition-colors">Asistencia</Link>
+        <ChevronLeft size={12} className="rotate-180" />
+        {session?.classroom && (
+          <>
+            <Link to={`/attendance/classroom/${session.classroom}`} className="hover:text-blue-600 transition-colors">
+              {session.classroom_name || `Grupo ${session.classroom}`}
+            </Link>
+            <ChevronLeft size={12} className="rotate-180" />
+          </>
+        )}
+        <span className="text-gray-600">Sesión</span>
       </div>
 
       <PageHeader
@@ -148,7 +156,6 @@ export default function SessionDetail() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Alumno</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Matrícula</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Minutos Presentes</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Asistencia</th>
                 </tr>
               </thead>
@@ -160,11 +167,6 @@ export default function SessionDetail() {
                     </td>
                     <td className="px-6 py-4 font-mono text-gray-600 text-xs">
                       {record.student_matricula || record.student?.matricula || '—'}
-                    </td>
-                    <td className="px-6 py-4 text-gray-600">
-                      {record.minutes_present !== undefined && record.minutes_present !== null
-                        ? `${record.minutes_present} min`
-                        : '—'}
                     </td>
                     <td className="px-6 py-4">
                       {record.is_present ? (

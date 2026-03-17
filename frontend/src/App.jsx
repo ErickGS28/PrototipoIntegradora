@@ -4,7 +4,6 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 // Pages
 import Login from './pages/Login'
 import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
 import MaestrosAdmin from './pages/admin/MaestrosAdmin'
 import ClassroomList from './pages/classrooms/ClassroomList'
 import ClassroomDetail from './pages/classrooms/ClassroomDetail'
@@ -13,6 +12,7 @@ import FaceCapture from './pages/classrooms/FaceCapture'
 import SessionList from './pages/attendance/SessionList'
 import NewSession from './pages/attendance/NewSession'
 import SessionDetail from './pages/attendance/SessionDetail'
+import ClassroomSessions from './pages/attendance/ClassroomSessions'
 import FatigueList from './pages/fatigue/FatigueList'
 import NewFatigueAnalysis from './pages/fatigue/NewFatigueAnalysis'
 import ReportViewer from './pages/reports/ReportViewer'
@@ -28,7 +28,7 @@ function AdminRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <div className="flex items-center justify-center h-screen">Cargando...</div>
   if (!user) return <Navigate to="/login" replace />
-  if (user.role !== 'admin') return <Navigate to="/dashboard" replace />
+  if (user.role !== 'admin') return <Navigate to="/classrooms" replace />
   return children
 }
 
@@ -40,8 +40,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard" element={<Dashboard />} />
+            <Route index element={<Navigate to="/classrooms" replace />} />
             <Route path="admin/maestros" element={<AdminRoute><MaestrosAdmin /></AdminRoute>} />
             <Route path="classrooms" element={<ClassroomList />} />
             <Route path="classrooms/:id" element={<ClassroomDetail />} />
@@ -50,12 +49,13 @@ export default function App() {
             <Route path="classrooms/students/:studentId/face-capture" element={<FaceCapture />} />
             <Route path="attendance" element={<SessionList />} />
             <Route path="attendance/new" element={<NewSession />} />
+            <Route path="attendance/classroom/:classroomId" element={<ClassroomSessions />} />
             <Route path="attendance/:id" element={<SessionDetail />} />
             <Route path="fatigue" element={<FatigueList />} />
             <Route path="fatigue/new" element={<NewFatigueAnalysis />} />
             <Route path="reports" element={<ReportViewer />} />
           </Route>
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/classrooms" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

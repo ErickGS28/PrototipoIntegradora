@@ -8,10 +8,11 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-PRESENCE_THRESHOLD_MINUTES = 40
-FRAMES_TO_SKIP = 15  # Process 1 of every 15 frames for better detection
+# A student is present if detected in at least this % of processed frames
+PRESENCE_THRESHOLD_PCT = 0.10  # 10% of frames with face detected = present
+FRAMES_TO_SKIP = 5  # Process 1 of every 5 frames
 FACE_SIZE = (128, 128)
-LBPH_CONFIDENCE_THRESHOLD = 90  # Lower = more strict match
+LBPH_CONFIDENCE_THRESHOLD = 100  # Lower = more strict; LBPH typical range 0-150
 
 # Load cascade once at module level
 _CASCADE_PATH = cv2.data.haarcascades
@@ -78,18 +79,20 @@ def process_attendance_video(session_id: int, video_path: str) -> None:
         if not cap.isOpened():
             raise ValueError(f"Cannot open video: {video_path}")
 
-        fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
-        frame_count_map = {}  # student_id -> detected frame count
+        frame_count_map = {}  # student_id -> frames detected
         total_frames = 0
+        processed_frames = 0
 
         while True:
             ret, frame = cap.read()
             if not ret:
                 break
 
+            total_frames += 1
             if total_frames % FRAMES_TO_SKIP != 0:
-                total_frames += 1
                 continue
+
+            processed_frames += 1
 
             # Resize for performance
             small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
@@ -109,6 +112,7 @@ def process_attendance_video(session_id: int, video_path: str) -> None:
 
                 try:
                     label, confidence = recognizer.predict(face_crop)
+                    logger.debug(f"Session {session_id}: label={label} confidence={confidence:.1f}")
                     if confidence < LBPH_CONFIDENCE_THRESHOLD:
                         sid = label_to_student_id.get(label)
                         if sid:
@@ -116,18 +120,18 @@ def process_attendance_video(session_id: int, video_path: str) -> None:
                 except Exception:
                     pass
 
-            total_frames += 1
-
         cap.release()
+        logger.info(
+            f"Session {session_id}: processed {processed_frames} frames, detections={frame_count_map}"
+        )
 
-        # Convert frame counts to minutes
-        # Each detected frame represents FRAMES_TO_SKIP real frames at FPS
-        minutes_map = {}
-        for sid, count in frame_count_map.items():
-            actual_frames = count * FRAMES_TO_SKIP
-            minutes_map[sid] = int(actual_frames / fps / 60)
+        # Mark present if detected in at least PRESENCE_THRESHOLD_PCT of processed frames
+        presence_map = {}
+        if processed_frames > 0:
+            for sid, count in frame_count_map.items():
+                presence_map[sid] = count / processed_frames
 
-        _finalize_session(session, students, minutes_map)
+        _finalize_session(session, students, presence_map)
 
     except Exception as exc:
         logger.exception(f"Error processing session {session_id}: {exc}")
@@ -144,17 +148,17 @@ def process_attendance_video(session_id: int, video_path: str) -> None:
                 logger.warning(f"Could not delete video {video_path}: {e}")
 
 
-def _finalize_session(session, students, minutes_map):
+def _finalize_session(session, students, presence_map):
     from apps.attendance.models import AttendanceRecord
 
     records = []
     for student in students:
-        minutes = minutes_map.get(student.id, 0)
+        pct = presence_map.get(student.id, 0.0)
         records.append(AttendanceRecord(
             session=session,
             student=student,
-            minutes_present=minutes,
-            is_present=minutes >= PRESENCE_THRESHOLD_MINUTES,
+            minutes_present=int(pct * 100),  # store % as integer for display
+            is_present=pct >= PRESENCE_THRESHOLD_PCT,
         ))
 
     AttendanceRecord.objects.bulk_create(records, ignore_conflicts=True)
