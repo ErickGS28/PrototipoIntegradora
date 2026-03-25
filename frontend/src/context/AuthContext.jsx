@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import api, { setTokens, clearTokens, getStoredRefresh } from '../api/axios'
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:8000/api'
+const BASE_URL = import.meta.env.VITE_API_URL
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {

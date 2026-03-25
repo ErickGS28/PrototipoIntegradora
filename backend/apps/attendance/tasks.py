@@ -1,5 +1,5 @@
+import io
 import os
-import pickle
 import logging
 import threading
 
@@ -32,13 +32,64 @@ def _detect_faces_gray(gray_frame):
     return faces if len(faces) > 0 else []
 
 
+def _build_recognizer(students):
+    """Build LBPH recognizer from stored face encodings.
+
+    Returns (recognizer, label_to_student_id) or (None, {}) if no encodings exist.
+    """
+    face_images = []
+    labels = []
+    label_to_student_id = {}
+    for idx, student in enumerate(students):
+        encodings = list(student.face_encodings.all())
+        if not encodings:
+            continue
+        for fe in encodings:
+            face_images.append(np.load(io.BytesIO(bytes(fe.encoding_data))))
+            labels.append(idx)
+        label_to_student_id[idx] = student.id
+    if not face_images:
+        return None, {}
+    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    recognizer.train(face_images, np.array(labels, dtype=np.int32))
+    return recognizer, label_to_student_id
+
+
+def _recognize_face(face_crop, session_id, recognizer, label_to_student_id, frame_count_map):
+    """Run LBPH prediction on a single face crop and update frame_count_map."""
+    try:
+        label, confidence = recognizer.predict(face_crop)
+        logger.debug(f"Session {session_id}: label={label} confidence={confidence:.1f}")
+        if confidence < LBPH_CONFIDENCE_THRESHOLD:
+            sid = label_to_student_id.get(label)
+            if sid:
+                frame_count_map[sid] = frame_count_map.get(sid, 0) + 1
+    except Exception:
+        pass
+
+
+def _process_frame_faces(gray, session_id, recognizer, label_to_student_id, frame_count_map):
+    """Detect all faces in a grayscale frame and run recognition on each."""
+    for (x, y, w, h) in _detect_faces_gray(gray):
+        pad = int(0.1 * min(w, h))
+        x1 = max(0, x - pad)
+        y1 = max(0, y - pad)
+        x2 = min(gray.shape[1], x + w + pad)
+        y2 = min(gray.shape[0], y + h + pad)
+        face_crop = gray[y1:y2, x1:x2]
+        if face_crop.size == 0:
+            continue
+        face_crop = cv2.resize(face_crop, FACE_SIZE)
+        _recognize_face(face_crop, session_id, recognizer, label_to_student_id, frame_count_map)
+
+
 def process_attendance_video(session_id: int, video_path: str) -> None:
     """
     Process a classroom video to determine attendance using OpenCV LBPH.
     Runs in a background thread. Deletes video when done.
     """
-    from apps.attendance.models import AttendanceSession, AttendanceRecord
-    from apps.classrooms.models import Student, FaceEncoding
+    from apps.attendance.models import AttendanceSession
+    from apps.classrooms.models import Student
 
     session = None
     try:
@@ -51,35 +102,19 @@ def process_attendance_video(session_id: int, video_path: str) -> None:
             classroom=classroom, is_active=True
         ).prefetch_related('face_encodings'))
 
-        # Build LBPH recognizer from stored face images
-        face_images = []
-        labels = []
-        label_to_student_id = {}
-
-        for idx, student in enumerate(students):
-            encodings = list(student.face_encodings.all())
-            if not encodings:
-                continue
-            for fe in encodings:
-                face_img = pickle.loads(bytes(fe.encoding_data))
-                face_images.append(face_img)
-                labels.append(idx)
-            label_to_student_id[idx] = student.id
-
-        if not face_images:
+        recognizer, label_to_student_id = _build_recognizer(students)
+        if recognizer is None:
             logger.warning(f"Session {session_id}: No face encodings found — marking all absent.")
             _finalize_session(session, students, {})
             return
 
-        recognizer = cv2.face.LBPHFaceRecognizer_create()
-        recognizer.train(face_images, np.array(labels, dtype=np.int32))
-        logger.info(f"Session {session_id}: Trained LBPH on {len(face_images)} images for {len(label_to_student_id)} students.")
+        logger.info(f"Session {session_id}: Trained LBPH for {len(label_to_student_id)} students.")
 
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
             raise ValueError(f"Cannot open video: {video_path}")
 
-        frame_count_map = {}  # student_id -> frames detected
+        frame_count_map = {}
         total_frames = 0
         processed_frames = 0
 
@@ -87,45 +122,19 @@ def process_attendance_video(session_id: int, video_path: str) -> None:
             ret, frame = cap.read()
             if not ret:
                 break
-
             total_frames += 1
             if total_frames % FRAMES_TO_SKIP != 0:
                 continue
-
             processed_frames += 1
-
-            # Resize for performance
             small = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
             gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
-
-            detected_faces = _detect_faces_gray(gray)
-            for (x, y, w, h) in detected_faces:
-                pad = int(0.1 * min(w, h))
-                x1 = max(0, x - pad)
-                y1 = max(0, y - pad)
-                x2 = min(gray.shape[1], x + w + pad)
-                y2 = min(gray.shape[0], y + h + pad)
-                face_crop = gray[y1:y2, x1:x2]
-                if face_crop.size == 0:
-                    continue
-                face_crop = cv2.resize(face_crop, FACE_SIZE)
-
-                try:
-                    label, confidence = recognizer.predict(face_crop)
-                    logger.debug(f"Session {session_id}: label={label} confidence={confidence:.1f}")
-                    if confidence < LBPH_CONFIDENCE_THRESHOLD:
-                        sid = label_to_student_id.get(label)
-                        if sid:
-                            frame_count_map[sid] = frame_count_map.get(sid, 0) + 1
-                except Exception:
-                    pass
+            _process_frame_faces(gray, session_id, recognizer, label_to_student_id, frame_count_map)
 
         cap.release()
         logger.info(
             f"Session {session_id}: processed {processed_frames} frames, detections={frame_count_map}"
         )
 
-        # Mark present if detected in at least PRESENCE_THRESHOLD_PCT of processed frames
         presence_map = {}
         if processed_frames > 0:
             for sid, count in frame_count_map.items():

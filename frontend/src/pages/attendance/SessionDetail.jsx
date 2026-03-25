@@ -31,6 +31,16 @@ export default function SessionDetail() {
     }
   }
 
+  const openReport = async () => {
+    try {
+      const res = await api.get(`/reports/attendance/?session_id=${id}`, { responseType: 'text' })
+      const blob = new Blob([res.data], { type: 'text/html' })
+      window.open(URL.createObjectURL(blob), '_blank')
+    } catch {
+      // silently fail
+    }
+  }
+
   const handleToggle = async (record) => {
     setToggling(record.id)
     try {
@@ -94,14 +104,12 @@ export default function SessionDetail() {
         subtitle={session?.classroom_name || `Grupo ${session?.classroom}`}
         action={
           isCompleted && (
-            <a
-              href={`http://localhost:8000/api/reports/attendance/?session_id=${id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={openReport}
               className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
             >
               <ExternalLink size={15} /> Ver Reporte
-            </a>
+            </button>
           )
         }
       />

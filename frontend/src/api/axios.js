@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const BASE_URL = 'http://localhost:8000/api'
+const BASE_URL = import.meta.env.VITE_API_URL
 
 // Access token stays in memory (XSS protection).
 // Refresh token goes to sessionStorage so page reloads don't kill the session.

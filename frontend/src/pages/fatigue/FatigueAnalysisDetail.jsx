@@ -41,6 +41,16 @@ export default function FatigueAnalysisDetail() {
       .finally(() => setLoading(false))
   }, [id])
 
+  const openReport = async () => {
+    try {
+      const res = await api.get(`/reports/fatigue/individual/?analysis_id=${id}`, { responseType: 'text' })
+      const blob = new Blob([res.data], { type: 'text/html' })
+      window.open(URL.createObjectURL(blob), '_blank')
+    } catch {
+      // silently fail
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6 max-w-3xl mx-auto space-y-4 animate-pulse">
@@ -81,14 +91,12 @@ export default function FatigueAnalysisDetail() {
         subtitle={`${analysis.classroom_name || ''} — ${analysis.date}`}
         action={
           hasResults && (
-            <a
-              href={`http://localhost:8000/api/reports/fatigue/individual/?analysis_id=${id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              onClick={openReport}
               className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
             >
               <ExternalLink size={15} /> Ver Reporte
-            </a>
+            </button>
           )
         }
       />

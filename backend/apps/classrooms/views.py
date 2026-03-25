@@ -1,5 +1,5 @@
 import base64
-import pickle
+import io
 import os
 
 import cv2
@@ -141,7 +141,9 @@ class CaptureFaceView(APIView):
         if face_crop is None:
             return Response({'error': 'No se detecto rostro en la imagen.'}, status=400)
 
-        encoding_bytes = pickle.dumps(face_crop)
+        buf = io.BytesIO()
+        np.save(buf, face_crop)
+        encoding_bytes = buf.getvalue()
         FaceEncoding.objects.create(student=student, encoding_data=encoding_bytes)
 
         count = student.face_encodings.count()

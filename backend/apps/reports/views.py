@@ -1,15 +1,17 @@
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.http import HttpResponse
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 
 from apps.attendance.models import AttendanceSession
 from apps.fatigue.models import FatigueSession, IndividualFatigueAnalysis
 
+_HTML_CONTENT_TYPE = 'text/html; charset=utf-8'
+
 
 class AttendanceReportView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         session_id = request.query_params.get('session_id')
@@ -40,11 +42,11 @@ class AttendanceReportView(APIView):
             'present_count': present_count,
             'total_count': records.count(),
         })
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
+        return HttpResponse(html, content_type=_HTML_CONTENT_TYPE)
 
 
 class FatigueReportView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         session_id = request.query_params.get('session_id')
@@ -67,11 +69,11 @@ class FatigueReportView(APIView):
             'present_count': present_count,
             'total_count': records.count(),
         })
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
+        return HttpResponse(html, content_type=_HTML_CONTENT_TYPE)
 
 
 class IndividualFatigueReportView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         analysis_id = request.query_params.get('analysis_id')
@@ -88,4 +90,4 @@ class IndividualFatigueReportView(APIView):
             'analysis': analysis,
             'student': analysis.student,
         })
-        return HttpResponse(html, content_type='text/html; charset=utf-8')
+        return HttpResponse(html, content_type=_HTML_CONTENT_TYPE)
