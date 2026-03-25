@@ -4,17 +4,14 @@ import logging
 
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from rest_framework import generics, status
+from rest_framework import generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import FatigueSession, IndividualFatigueAnalysis
-from .serializers import (
-    FatigueSessionSerializer, FatigueSessionListSerializer,
-    IndividualFatigueAnalysisSerializer,
-)
-from .tasks import start_fatigue_processing, start_individual_fatigue_processing
+from .models import IndividualFatigueAnalysis
+from .serializers import IndividualFatigueAnalysisSerializer
+from .tasks import start_individual_fatigue_processing
 
 logger = logging.getLogger(__name__)
 
@@ -22,101 +19,8 @@ ALLOWED_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv'}
 MAX_UPLOAD_SIZE = getattr(settings, 'MAX_UPLOAD_SIZE', 500 * 1024 * 1024)
 
 
-class FatigueSessionListView(generics.ListAPIView):
-    serializer_class = FatigueSessionListSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        qs = FatigueSession.objects.select_related('classroom', 'maestro')
-        if not self.request.user.is_admin:
-            qs = qs.filter(maestro=self.request.user)
-        classroom_id = self.request.query_params.get('classroom_id')
-        if classroom_id:
-            qs = qs.filter(classroom_id=classroom_id)
-        return qs.order_by('-date', '-created_at')
-
-
-class FatigueSessionCreateView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        classroom_id = request.data.get('classroom_id')
-        date = request.data.get('date')
-        video_file = request.FILES.get('video')
-
-        if not classroom_id:
-            return Response({'error': 'Se requiere classroom_id.'}, status=400)
-        if not date:
-            return Response({'error': 'Se requiere date (YYYY-MM-DD).'}, status=400)
-        if not video_file:
-            return Response({'error': 'Se requiere el archivo de video.'}, status=400)
-
-        from apps.classrooms.models import Classroom
-        qs = Classroom.objects.all()
-        if not request.user.is_admin:
-            qs = qs.filter(maestro=request.user)
-        classroom = get_object_or_404(qs, pk=classroom_id)
-
-        ext = os.path.splitext(video_file.name)[1].lower()
-        if ext not in ALLOWED_EXTENSIONS:
-            return Response(
-                {'error': f'Formato no permitido. Use: {", ".join(ALLOWED_EXTENSIONS)}'},
-                status=400,
-            )
-        if video_file.size > MAX_UPLOAD_SIZE:
-            return Response({'error': 'El video supera el límite de 500MB.'}, status=400)
-
-        tmp_dir = settings.MEDIA_ROOT / 'tmp'
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-        filename = f"fatigue_session_{classroom.id}_{uuid.uuid4().hex}{ext}"
-        video_path = tmp_dir / filename
-
-        with open(video_path, 'wb') as f:
-            for chunk in video_file.chunks():
-                f.write(chunk)
-
-        session = FatigueSession.objects.create(
-            classroom=classroom,
-            maestro=request.user,
-            date=date,
-        )
-
-        start_fatigue_processing(session.id, str(video_path))
-
-        return Response(FatigueSessionListSerializer(session).data, status=202)
-
-
-class FatigueSessionDetailView(generics.RetrieveAPIView):
-    serializer_class = FatigueSessionSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        qs = FatigueSession.objects.select_related(
-            'classroom', 'maestro'
-        ).prefetch_related('records__student')
-        if not self.request.user.is_admin:
-            qs = qs.filter(maestro=self.request.user)
-        return qs
-
-
-class FatigueSessionStatusView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request, pk):
-        qs = FatigueSession.objects.all()
-        if not request.user.is_admin:
-            qs = qs.filter(maestro=request.user)
-        session = get_object_or_404(qs, pk=pk)
-        return Response({
-            'id': session.id,
-            'status': session.status,
-            'error_message': session.error_message,
-        })
-
-
-# ── Individual fatigue analysis views ──────────────────────────────────────
-
 class IndividualFatigueListView(generics.ListAPIView):
+    """Lista todos los análisis individuales del maestro autenticado."""
     serializer_class = IndividualFatigueAnalysisSerializer
     permission_classes = [IsAuthenticated]
 
@@ -136,6 +40,11 @@ class IndividualFatigueListView(generics.ListAPIView):
 
 
 class IndividualFatigueCreateView(APIView):
+    """
+    Recibe student_id, date y video (multipart).
+    Guarda el video en /tmp, crea IndividualFatigueAnalysis y lanza
+    el procesamiento en un hilo daemon.
+    """
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
@@ -186,6 +95,7 @@ class IndividualFatigueCreateView(APIView):
 
 
 class IndividualFatigueDetailView(generics.RetrieveAPIView):
+    """Detalle de un análisis individual por id."""
     serializer_class = IndividualFatigueAnalysisSerializer
     permission_classes = [IsAuthenticated]
 
@@ -197,6 +107,7 @@ class IndividualFatigueDetailView(generics.RetrieveAPIView):
 
 
 class IndividualFatigueStatusView(APIView):
+    """Endpoint de polling — devuelve solo el estado actual del análisis."""
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
